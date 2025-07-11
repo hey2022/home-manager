@@ -28,6 +28,12 @@ let
       ''"${value}"''
     else if lib.isList value then
       "[ ${lib.strings.concatStringsSep "," (map mkValueString value)} ]"
+    else if isAttrs value then
+      ''
+        {
+          ${lib.concatLines (lib.mapAttrsToList (name: value: mkKeyValue name value) value)}
+        }
+      ''
     else
       abort "Unhandled value type ${builtins.typeOf value}";
 
@@ -92,7 +98,13 @@ let
     ]);
 
   # Either a `section { foo: "bar"; }` or a `@import/@theme "some-text"`
-  configType = with types; (either (attrsOf (either primitive (listOf primitive))) str);
+  configType =
+    with types;
+    (either (attrsOf (oneOf [
+      primitive
+      (listOf primitive)
+      (attrsOf (either primitive (listOf primitive)))
+    ])) str);
 
   rasiLiteral =
     types.submodule {
